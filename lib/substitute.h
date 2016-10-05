@@ -101,9 +101,11 @@ struct substitute_function_hook {
 };
 
 /* substitute_hook_functions options */
+#ifndef NO_PTHREADS
 enum {
     SUBSTITUTE_NO_THREAD_SAFETY = 1,
 };
+#endif
 
 /* Patch the machine code of the specified functions to redirect them to the
  * specified replacements.
@@ -153,7 +155,7 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
                               struct substitute_function_hook_record **recordp,
                               int options);
 
-#if 1 /* declare dynamic linker-related stuff? */
+#ifndef NO_DYNAMIC_LINKER_STUFF /* declare dynamic linker-related stuff? */
 
 #ifdef __APPLE__
 #include <mach-o/nlist.h>
@@ -271,7 +273,7 @@ int substitute_interpose_imports(const struct substitute_image *handle,
                                  int options);
 
 
-#endif /* 1 */
+#endif /* NO_DYNAMIC_LINKER_STUFF */
 
 #if defined(__APPLE__)
 #include <objc/runtime.h>

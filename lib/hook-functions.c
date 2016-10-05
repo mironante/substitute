@@ -5,7 +5,9 @@
 #include "transform-dis.h"
 #include "execmem.h"
 #include stringify(TARGET_DIR/jump-patch.h)
+#ifndef NO_PTHREADS
 #include <pthread.h>
+#endif
 
 struct hook_internal {
     int offset_by_pcdiff[MAX_EXTENDED_PATCH_SIZE + 1];
@@ -135,9 +137,13 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
                               size_t nhooks,
                               struct substitute_function_hook_record **recordp,
                               int options) {
+#ifndef NO_PTHREADS
     bool thread_safe = !(options & SUBSTITUTE_NO_THREAD_SAFETY);
     if (thread_safe && !pthread_main_np())
         return SUBSTITUTE_ERR_NOT_ON_MAIN_THREAD;
+#else
+    bool thread_safe = false;
+#endif
 
     if (recordp)
         *recordp = NULL;

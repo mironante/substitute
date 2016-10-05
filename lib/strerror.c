@@ -24,8 +24,10 @@ const char *substitute_strerror(int err) {
                        _SUBSTITUTE_CURRENT_MAX_ERR_PLUS_ONE + 1,
                        "not all errors named in strerror.c");
         /* substitute-internal.h */
+#ifdef __APPLE__
         CASE(SUBSTITUTE_ERR_TASK_FOR_PID);
         CASE(SUBSTITUTE_ERR_MISC);
+#endif /* __APPLE__ */
         default:
             return "(unknown libsubstitute error)";
     }
