@@ -63,10 +63,11 @@ static execmem_pc_patch_callback g_pc_patch_callback;
 static void *g_pc_patch_callback_ctx;
 static mach_port_t g_suspending_thread;
 
-int execmem_alloc_unsealed(uintptr_t hint, void **page_p, size_t *size_p) {
+int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p, size_t *size_p) {
     *size_p = PAGE_SIZE;
     *page_p = mmap((void *) hint, *size_p, PROT_READ | PROT_WRITE,
                    MAP_ANON | MAP_SHARED, -1, 0);
+    *vma_p = (uintptr_t)*page_p;
     if (*page_p == MAP_FAILED)
         return SUBSTITUTE_ERR_VM;
     return SUBSTITUTE_OK;

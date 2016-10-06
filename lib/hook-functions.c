@@ -64,6 +64,7 @@ static uintptr_t pc_callback(void *ctx, uintptr_t pc) {
  */
 
 static int check_intro_trampoline(void **trampoline_ptr_p,
+                                  uintptr_t *trampoline_addr_p, 
                                   size_t *trampoline_size_left_p,
                                   uintptr_t pc,
                                   uintptr_t dpc,
@@ -72,6 +73,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
                                   void **trampoline_page_p,
                                   struct arch_dis_ctx arch) {
     void *trampoline_ptr = *trampoline_ptr_p;
+    uintptr_t trampoline_addr = *trampoline_addr_p;
     size_t trampoline_size_left = *trampoline_size_left_p;
 
     /* Try direct */
@@ -84,7 +86,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
 
     if (trampoline_ptr) {
         /* Try existing trampoline */
-        *patch_size_p = jump_patch_size(pc, (uintptr_t) trampoline_ptr, arch,
+        *patch_size_p = jump_patch_size(pc, trampoline_addr, arch,
                                         false);
 
         if (*patch_size_p != -1 && (size_t) *patch_size_p
@@ -94,10 +96,10 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
 
     /* Allocate new trampoline - try after pc.  If this fails, we can try
      * before pc before giving up. */
-    int ret = execmem_alloc_unsealed(pc, &trampoline_ptr, &trampoline_size_left);
+    int ret = execmem_alloc_unsealed(pc, &trampoline_ptr, &trampoline_addr, 
+                                     &trampoline_size_left);
     if (!ret) {
-        *patch_size_p = jump_patch_size(pc, (uintptr_t) trampoline_ptr, arch,
-                                        false);
+        *patch_size_p = jump_patch_size(pc, trampoline_addr, arch, false);
         if (*patch_size_p != -1) {
             ret = SUBSTITUTE_OK;
             goto end;
@@ -108,16 +110,13 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
 
     /* Allocate new trampoline - try before pc (xxx only meaningful on arm64) */
     uintptr_t start_address = pc - 0x80000000;
-    ret = execmem_alloc_unsealed(start_address,
-                                 &trampoline_ptr, &trampoline_size_left);
+    ret = execmem_alloc_unsealed(start_address, &trampoline_ptr, &trampoline_addr, 
+                                 &trampoline_size_left);
     if (!ret) {
-        *patch_size_p = jump_patch_size(pc, (uintptr_t) trampoline_ptr, arch,
-                                        false);
+        *patch_size_p = jump_patch_size(pc, trampoline_addr, arch, false);
         if (*patch_size_p != -1) {
-            *trampoline_ptr_p = trampoline_ptr;
-            *trampoline_size_left_p = trampoline_size_left;
-            *trampoline_page_p = trampoline_ptr;
-            return SUBSTITUTE_OK;
+            ret = SUBSTITUTE_OK;
+            goto end;
         }
 
         execmem_free(trampoline_ptr);
@@ -126,6 +125,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
 
 end:
     *trampoline_ptr_p = trampoline_ptr;
+    *trampoline_addr_p = trampoline_addr;
     *trampoline_size_left_p = trampoline_size_left;
     *trampoline_page_p = trampoline_ptr;
     return ret;
@@ -160,7 +160,9 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
 
     int ret = SUBSTITUTE_OK;
 
+    void *trampoline_prev = NULL;
     void *trampoline_ptr = NULL;
+    uintptr_t trampoline_addr = 0;
     size_t trampoline_size_left = 0;
 
     /* First run through and (a) ensure all the functions are OK to hook, (b)
@@ -182,8 +184,8 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         uintptr_t pc_patch_start = (uintptr_t) code;
         int patch_size;
         bool need_intro_trampoline;
-        if ((ret = check_intro_trampoline(&trampoline_ptr, &trampoline_size_left,
-                                          pc_patch_start,
+        if ((ret = check_intro_trampoline(&trampoline_ptr, &trampoline_addr, 
+                                          &trampoline_size_left, pc_patch_start,
                                           (uintptr_t) hook->replacement,
                                           &patch_size, &need_intro_trampoline,
                                           &hi->trampoline_page, arch)))
@@ -192,10 +194,12 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         uint_tptr pc_patch_end = pc_patch_start + patch_size;
         uintptr_t initial_target;
         if (need_intro_trampoline) {
-            initial_target = (uintptr_t) trampoline_ptr;
+            initial_target = trampoline_addr;
+            trampoline_prev = trampoline_ptr;
             make_jump_patch(&trampoline_ptr, (uintptr_t) trampoline_ptr,
                             (uintptr_t) hook->replacement, arch);
             trampoline_size_left -= patch_size;
+            trampoline_addr += (trampoline_ptr - trampoline_prev);
         } else {
             initial_target = (uintptr_t) hook->replacement;
         }
@@ -209,7 +213,8 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
 
         if (outro_est > trampoline_size_left) {
             /* Not enough space left in our existing block... */
-            if ((ret = execmem_alloc_unsealed(0, &trampoline_ptr,
+            if ((ret = execmem_alloc_unsealed(0, &trampoline_ptr, 
+                                              &trampoline_addr, 
                                               &trampoline_size_left)))
                 goto end;
             /* NOTE: We assume that each page is large enough (min 0x1000)
@@ -231,11 +236,13 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
          * trampoline (complaining if any bad instructions are found)
          * (on arm64, this modifies arch.regs_possibly_written, which is used
          * by the later make_jump_patch call) */
+        trampoline_prev = trampoline_ptr;
         if ((ret = transform_dis_main(code, &trampoline_ptr, pc_patch_start,
-                                      &pc_patch_end, (uintptr_t) trampoline_ptr,
+                                      &pc_patch_end, trampoline_addr,
                                       &arch, hi->offset_by_pcdiff,
                                       thread_safe ? TRANSFORM_DIS_BAN_CALLS : 0)))
             goto end;
+        trampoline_addr += (trampoline_ptr - trampoline_prev);
 
         uintptr_t dpc = pc_patch_end;
 #ifdef __arm__
@@ -249,8 +256,12 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         if ((ret = jump_dis_main(code, pc_patch_start, pc_patch_end, arch)))
             goto end;
         /* Okay, continue with the outro. */
-        make_jump_patch(&trampoline_ptr, (uintptr_t) trampoline_ptr, dpc, arch);
+        trampoline_prev = trampoline_ptr;
+        make_jump_patch(&trampoline_ptr, trampoline_addr, dpc, arch);
+        trampoline_addr += (trampoline_ptr - trampoline_prev);
+
         trampoline_ptr += -(uintptr_t) trampoline_ptr % ARCH_MAX_CODE_ALIGNMENT;
+        trampoline_addr += -trampoline_addr % ARCH_MAX_CODE_ALIGNMENT;
         trampoline_size_left -= (uint8_t *) trampoline_ptr
                               - (uint8_t *) outro_trampoline_real;
     }

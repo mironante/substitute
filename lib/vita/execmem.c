@@ -2,7 +2,7 @@
 #include "execmem.h"
 #include "substitute.h"
 
-int execmem_alloc_unsealed(uintptr_t hint, void **page_p, size_t *size_p) {
+int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p, size_t *size_p) {
     return 0;
 }
 
