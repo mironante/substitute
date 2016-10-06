@@ -5,6 +5,7 @@
 #include "transform-dis.h"
 #include "execmem.h"
 #include stringify(TARGET_DIR/jump-patch.h)
+#include <alloca.h>
 #ifndef NO_PTHREADS
 #include <pthread.h>
 #endif
@@ -149,7 +150,7 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         *recordp = NULL;
 
     struct execmem_foreign_write *fws;
-    struct hook_internal *his = malloc(nhooks * sizeof(*his) +
+    struct hook_internal *his = alloca(nhooks * sizeof(*his) +
                                        nhooks * sizeof(*fws));
     if (!his)
         return SUBSTITUTE_ERR_OOM;
@@ -297,7 +298,6 @@ end:
             execmem_free(page);
     }
 end_dont_free:
-    free(his);
     return ret;
 }
 
