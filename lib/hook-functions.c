@@ -195,6 +195,7 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
             initial_target = (uintptr_t) trampoline_ptr;
             make_jump_patch(&trampoline_ptr, (uintptr_t) trampoline_ptr,
                             (uintptr_t) hook->replacement, arch);
+            trampoline_size_left -= patch_size;
         } else {
             initial_target = (uintptr_t) hook->replacement;
         }
@@ -211,6 +212,9 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
             if ((ret = execmem_alloc_unsealed(0, &trampoline_ptr,
                                               &trampoline_size_left)))
                 goto end;
+            /* NOTE: We assume that each page is large enough (min 0x1000)
+             * so we don't lose a reference by having one hook allocate two 
+             * pages. */
             hi->trampoline_page = trampoline_ptr;
         }
 
