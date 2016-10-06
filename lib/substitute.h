@@ -98,6 +98,8 @@ struct substitute_function_hook {
     /* Currently unused; pass 0.  (Protip: When using C {} struct initializer
      * syntax, you can just omit this.) */
     int options;
+    /* If not zero, then assume the actual address of function is func_addr */
+    uintptr_t func_addr;
 };
 
 /* substitute_hook_functions options */
