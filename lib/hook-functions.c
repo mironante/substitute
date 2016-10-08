@@ -72,7 +72,8 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
                                   int *patch_size_p,
                                   bool *need_intro_trampoline_p,
                                   void **trampoline_page_p,
-                                  struct arch_dis_ctx arch) {
+                                  struct arch_dis_ctx arch,
+                                  void *opt) {
     void *trampoline_ptr = *trampoline_ptr_p;
     uintptr_t trampoline_addr = *trampoline_addr_p;
     size_t trampoline_size_left = *trampoline_size_left_p;
@@ -98,7 +99,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
     /* Allocate new trampoline - try after pc.  If this fails, we can try
      * before pc before giving up. */
     int ret = execmem_alloc_unsealed(pc, &trampoline_ptr, &trampoline_addr, 
-                                     &trampoline_size_left);
+                                     &trampoline_size_left, opt);
     if (!ret) {
         *patch_size_p = jump_patch_size(pc, trampoline_addr, arch, false);
         if (*patch_size_p != -1) {
@@ -106,13 +107,13 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
             goto end;
         }
 
-        execmem_free(trampoline_ptr);
+        execmem_free(trampoline_ptr, opt);
     }
 
     /* Allocate new trampoline - try before pc (xxx only meaningful on arm64) */
     uintptr_t start_address = pc - 0x80000000;
     ret = execmem_alloc_unsealed(start_address, &trampoline_ptr, &trampoline_addr, 
-                                 &trampoline_size_left);
+                                 &trampoline_size_left, opt);
     if (!ret) {
         *patch_size_p = jump_patch_size(pc, trampoline_addr, arch, false);
         if (*patch_size_p != -1) {
@@ -120,7 +121,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
             goto end;
         }
 
-        execmem_free(trampoline_ptr);
+        execmem_free(trampoline_ptr, opt);
         ret = SUBSTITUTE_ERR_OUT_OF_RANGE;
     }
 
@@ -190,7 +191,8 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
                                           &trampoline_size_left, pc_patch_start,
                                           (uintptr_t) hook->replacement,
                                           &patch_size, &need_intro_trampoline,
-                                          &hi->trampoline_page, arch)))
+                                          &hi->trampoline_page, arch, 
+                                          hook->opt)))
             goto end;
 
         uint_tptr pc_patch_end = pc_patch_start + patch_size;
@@ -217,7 +219,8 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
             /* Not enough space left in our existing block... */
             if ((ret = execmem_alloc_unsealed(0, &trampoline_ptr, 
                                               &trampoline_addr, 
-                                              &trampoline_size_left)))
+                                              &trampoline_size_left, 
+                                              hook->opt)))
                 goto end;
             /* NOTE: We assume that each page is large enough (min 0x1000)
              * so we don't lose a reference by having one hook allocate two 
@@ -273,10 +276,11 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         struct hook_internal *hi = &his[i];
         void *page = hi->trampoline_page;
         if (page)
-            execmem_seal(page);
+            execmem_seal(page, hooks[i].opt);
         fws[i].dst = hi->code;
         fws[i].src = hi->jump_patch;
         fws[i].len = hi->jump_patch_size;
+        fws[i].opt = hooks[i].opt;
     }
 
     struct pc_callback_info info = {his, nhooks, false};
@@ -296,7 +300,7 @@ end:
     for (size_t i = 0; i < nhooks; i++) {
         void *page = his[i].trampoline_page;
         if (page)
-            execmem_free(page);
+            execmem_free(page, hooks[i].opt);
     }
 end_dont_free:
     return ret;

@@ -63,7 +63,8 @@ static execmem_pc_patch_callback g_pc_patch_callback;
 static void *g_pc_patch_callback_ctx;
 static mach_port_t g_suspending_thread;
 
-int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p, size_t *size_p) {
+int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p, 
+                           size_t *size_p, UNUSED void *opt) {
     *size_p = PAGE_SIZE;
     *page_p = mmap((void *) hint, *size_p, PROT_READ | PROT_WRITE,
                    MAP_ANON | MAP_SHARED, -1, 0);
@@ -73,13 +74,13 @@ int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p, size
     return SUBSTITUTE_OK;
 }
 
-int execmem_seal(void *page) {
+int execmem_seal(void *page, UNUSED void *opt) {
     if (mprotect(page, PAGE_SIZE, PROT_READ | PROT_EXEC))
         return SUBSTITUTE_ERR_VM;
     return SUBSTITUTE_OK;
 }
 
-void execmem_free(void *page) {
+void execmem_free(void *page, UNUSED void *opt) {
     munmap(page, PAGE_SIZE);
 }
 
