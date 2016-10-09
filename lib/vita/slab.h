@@ -35,5 +35,6 @@ struct slab_chain {
 void slab_init(struct slab_chain *, size_t, SceUID);
 void *slab_alloc(struct slab_chain *, uintptr_t *);
 void slab_free(struct slab_chain *, const void *);
+uintptr_t slab_getmirror(struct slab_chain *, const void *);
 void slab_traverse(const struct slab_chain *, void (*)(const void *));
 void slab_destroy(const struct slab_chain *);
