@@ -3,19 +3,20 @@
 #include "execmem.h"
 #include stringify(TARGET_DIR/jump-patch.h)
 #include <psp2kern/kernel/sysmem.h>
+#include "../../../slab.h"
 #include "../../../taihen_internal.h"
 
 /** The size of each trampoline allocation. We use it for outro and optional
  * intro. Realistically, we do not use an intro.
  */
-#define SLAB_ITEM_SIZE (TD_MAX_REWRITTEN_SIZE + 2 * MAX_JUMP_PATCH_SIZE)
-#if (SLAB_ITEM_SIZE % ARCH_MAX_CODE_ALIGNMENT != 0)
+#define PATCH_ITEM_SIZE (TD_MAX_REWRITTEN_SIZE + 2 * MAX_JUMP_PATCH_SIZE)
+#if (PATCH_ITEM_SIZE % ARCH_MAX_CODE_ALIGNMENT != 0)
 // if not aligned then substitute_hook_functions breaks!
-#error SLAB_ITEM_SIZE Must be aligned to ARCH_MAX_CODE_ALIGNMENT
+#error PATCH_ITEM_SIZE Must be aligned to ARCH_MAX_CODE_ALIGNMENT
 #endif
 
-/** Allow other files to use this constant. */
-const int g_exe_slab_item_size = SLAB_ITEM_SIZE;
+/** We use the slab allocator for both these things. Choose the larger of the two as size. */
+const int g_exe_slab_item_size = PATCH_ITEM_SIZE > sizeof(tai_hook_t) ? PATCH_ITEM_SIZE : sizeof(tai_hook_t);
 
 /**
  * @file execmem.c
