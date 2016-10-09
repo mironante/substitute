@@ -2,8 +2,8 @@
 #include <sys/types.h>
 /* For allocating trampolines - this is just a mmap wrapper. */
 int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p, size_t *size_p, void *opt);
-int execmem_seal(void *page, void *opt);
-void execmem_free(void *page, void *opt);
+int execmem_seal(void *page, uintptr_t vma, void *opt);
+void execmem_free(void *page, uintptr_t vma, void *opt);
 
 /* Write to "foreign" (i.e. owned by another library, not out-of-process) pages
  * which are already RX or have unknown permissions.
