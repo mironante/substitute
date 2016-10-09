@@ -104,6 +104,16 @@ struct substitute_function_hook {
     void *opt;
 };
 
+struct substitute_function_hook_record {
+    /* Function that was originally hooked. */
+    void *function;
+    /** Should at least be MAX_JUMP_PATCH_SIZE for your platform */
+    size_t buffer_size;
+    /** Store the original code. Must be large enough to hold MAX_JUMP_PATCH_SIZE
+     * for whatever platform your are targeting! */
+    char saved_buffer[];
+};
+
 /* substitute_hook_functions options */
 #ifndef NO_PTHREADS
 enum {
@@ -149,15 +159,25 @@ enum {
  * @hooks    see struct substitute_function_hook
  * @nhooks   number of hooks
  * @recordp  if non-NULL, on success receives a pointer that can be used to
- *           cleanly undo the hooks; currently unimplemented, so pass NULL
+ *           cleanly undo the hooks
  * @options  options - see above
  * @return   SUBSTITUTE_OK, or any of most of the SUBSTITUTE_ERR_*
  */
-struct substitute_function_hook_record;
 int substitute_hook_functions(const struct substitute_function_hook *hooks,
                               size_t nhooks,
                               struct substitute_function_hook_record **recordp,
                               int options);
+
+/**
+ * @brief      Frees hooks and restores original code.
+ *
+ * @param      records  from `substitute_hook_functions`
+ * @param[in]  nhooks   Number of hooks to free
+ *
+ * @return     SUBSTITUTE_OK, or any of most of the SUBSTITUTE_ERR_*
+ */
+int substitute_free_hooks(struct substitute_function_hook_record *records, 
+                          size_t nhooks);
 
 #ifndef NO_DYNAMIC_LINKER_STUFF /* declare dynamic linker-related stuff? */
 

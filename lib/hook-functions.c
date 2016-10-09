@@ -5,6 +5,7 @@
 #include "transform-dis.h"
 #include "execmem.h"
 #include stringify(TARGET_DIR/jump-patch.h)
+#include <stdlib.h>
 #include <alloca.h>
 #ifndef NO_PTHREADS
 #include <pthread.h>
@@ -273,6 +274,15 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
                               - (uint8_t *) outro_trampoline_real;
     }
 
+    /* room to save records */
+    struct substitute_function_hook_record *records = NULL;
+
+    if (recordp) {
+        records = malloc(nhooks * (sizeof(struct substitute_function_hook_record) + 
+                         MAX_JUMP_PATCH_SIZE));
+        *recordp = records;
+    }
+
     /* Now commit. */
     for (size_t i = 0; i < nhooks; i++) {
         struct hook_internal *hi = &his[i];
@@ -283,6 +293,10 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         fws[i].src = hi->jump_patch;
         fws[i].len = hi->jump_patch_size;
         fws[i].opt = hooks[i].opt;
+        records->function = hi->code;
+        records->buffer_size = hi->jump_patch_size;
+        memcpy(records->saved_buffer, hi->code, hi->jump_patch_size);
+        records = (struct substitute_function_hook_record *)((char *)&records->saved_buffer + records->buffer_size);
     }
 
     struct pc_callback_info info = {his, nhooks, false};
@@ -304,7 +318,29 @@ end:
         if (page)
             execmem_free(page, hooks[i].opt);
     }
+    /* free records */
+    if (recordp && *recordp)
+        free(*recordp);
 end_dont_free:
+    return ret;
+}
+
+EXPORT
+int substitute_free_hooks(struct substitute_function_hook_record *records, 
+                          size_t nhooks) {
+    int ret;
+    struct substitute_function_hook_record *cur = records;
+    struct execmem_foreign_write *fws = alloca(nhooks * sizeof(*fws));
+    for (int i = 0; i < nhooks; i++) {
+        fws[i].dst = cur->function;
+        fws[i].src = cur->saved_buffer;
+        fws[i].len = cur->buffer_size;
+        fws[i].opt = NULL;
+        cur = (struct substitute_function_hook_record *)((char *)&cur->saved_buffer + cur->buffer_size);
+    }
+    /* TODO: Fix the case when thread is inside a patch/trampoline. */
+    ret = execmem_foreign_write_with_pc_patch(fws, nhooks, NULL, NULL);
+    free(records);
     return ret;
 }
 
