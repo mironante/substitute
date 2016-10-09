@@ -74,13 +74,13 @@ int execmem_alloc_unsealed(uintptr_t hint, void **page_p, uintptr_t *vma_p,
     return SUBSTITUTE_OK;
 }
 
-int execmem_seal(void *page, UNUSED uintptr_t vma, UNUSED void *opt) {
+int execmem_seal(void *page, UNUSED void *opt) {
     if (mprotect(page, PAGE_SIZE, PROT_READ | PROT_EXEC))
         return SUBSTITUTE_ERR_VM;
     return SUBSTITUTE_OK;
 }
 
-void execmem_free(void *page, UNUSED uintptr_t vma, UNUSED void *opt) {
+void execmem_free(void *page, UNUSED void *opt) {
     munmap(page, PAGE_SIZE);
 }
 

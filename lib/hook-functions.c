@@ -19,7 +19,6 @@ struct hook_internal {
     /* page allocated with execmem_alloc_unsealed - only if we had to allocate
      * one when processing this hook */
     void *trampoline_page;
-    uintptr_t trampoline_addr;
     struct arch_dis_ctx arch_dis_ctx;
 };
 
@@ -73,7 +72,6 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
                                   int *patch_size_p,
                                   bool *need_intro_trampoline_p,
                                   void **trampoline_page_p,
-                                  uintptr_t *trampoline_page_addr_p,
                                   struct arch_dis_ctx arch,
                                   void *opt) {
     void *trampoline_ptr = *trampoline_ptr_p;
@@ -109,7 +107,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
             goto end;
         }
 
-        execmem_free(trampoline_ptr, trampoline_addr, opt);
+        execmem_free(trampoline_ptr, opt);
     }
 
     /* Allocate new trampoline - try before pc (xxx only meaningful on arm64) */
@@ -123,7 +121,7 @@ static int check_intro_trampoline(void **trampoline_ptr_p,
             goto end;
         }
 
-        execmem_free(trampoline_ptr, trampoline_addr, opt);
+        execmem_free(trampoline_ptr, opt);
         ret = SUBSTITUTE_ERR_OUT_OF_RANGE;
     }
 
@@ -132,7 +130,6 @@ end:
     *trampoline_addr_p = trampoline_addr;
     *trampoline_size_left_p = trampoline_size_left;
     *trampoline_page_p = trampoline_ptr;
-    *trampoline_page_addr_p = trampoline_addr;
     return ret;
 }
 
@@ -194,8 +191,7 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
                                           &trampoline_size_left, pc_patch_start,
                                           (uintptr_t) hook->replacement,
                                           &patch_size, &need_intro_trampoline,
-                                          &hi->trampoline_page, 
-                                          &hi->trampoline_addr, arch, 
+                                          &hi->trampoline_page, arch, 
                                           hook->opt)))
             goto end;
 
@@ -232,7 +228,6 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
              * ensure this size is aligned to ARCH_MAX_CODE_ALIGNMENT otherwise
              * MAX_JUMP_PATCH_SIZE might be wrong. */
             hi->trampoline_page = trampoline_ptr;
-            hi->trampoline_addr = trampoline_addr;
         }
 
         void *outro_trampoline_real = trampoline_ptr;
@@ -282,9 +277,8 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
     for (size_t i = 0; i < nhooks; i++) {
         struct hook_internal *hi = &his[i];
         void *page = hi->trampoline_page;
-        uintptr_t addr = hi->trampoline_addr;
         if (page)
-            execmem_seal(page, addr, hooks[i].opt);
+            execmem_seal(page, hooks[i].opt);
         fws[i].dst = hi->code;
         fws[i].src = hi->jump_patch;
         fws[i].len = hi->jump_patch_size;
@@ -307,9 +301,8 @@ end:
     /* if we failed, get rid of the trampolines. */
     for (size_t i = 0; i < nhooks; i++) {
         void *page = his[i].trampoline_page;
-        uintptr_t addr = his[i].trampoline_addr;
         if (page)
-            execmem_free(page, addr, hooks[i].opt);
+            execmem_free(page, hooks[i].opt);
     }
 end_dont_free:
     return ret;

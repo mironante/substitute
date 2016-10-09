@@ -2,7 +2,6 @@
 
 #include "slab.h"
 
-#include <math.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -49,6 +48,18 @@ static int sce_exe_free(SceUID write_res, SceUID exe_res) {
     return 0;
 }
 
+static inline uint32_t next_pow_2(uint32_t v) {
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    v += (v == 0);
+    return v;
+}
+
 void slab_init(struct slab_chain *const sch, const size_t itemsize, SceUID pid)
 {
     assert(sch != NULL);
@@ -60,7 +71,7 @@ void slab_init(struct slab_chain *const sch, const size_t itemsize, SceUID pid)
 
     const size_t data_offset = offsetof(struct slab_header, data);
     const size_t least_slabsize = data_offset + 64 * sch->itemsize;
-    sch->slabsize = (size_t) 1 << (size_t) ceil(log2(least_slabsize));
+    sch->slabsize = (size_t) next_pow_2(least_slabsize);
     sch->itemcount = 64;
 
     if (sch->slabsize - least_slabsize != 0) {

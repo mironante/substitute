@@ -32,7 +32,7 @@ struct slab_chain {
     SceUID pid;
 };
 
-void slab_init(struct slab_chain *, size_t);
+void slab_init(struct slab_chain *, size_t, SceUID);
 void *slab_alloc(struct slab_chain *, uintptr_t *);
 void slab_free(struct slab_chain *, const void *);
 void slab_traverse(const struct slab_chain *, void (*)(const void *));

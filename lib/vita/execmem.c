@@ -8,11 +8,14 @@
 /** The size of each trampoline allocation. We use it for outro and optional
  * intro. Realistically, we do not use an intro.
  */
-#define SLAB_SIZE (TD_MAX_REWRITTEN_SIZE + 2 * MAX_JUMP_PATCH_SIZE)
-#if (SLAB_SIZE % ARCH_MAX_CODE_ALIGNMENT != 0)
+#define SLAB_ITEM_SIZE (TD_MAX_REWRITTEN_SIZE + 2 * MAX_JUMP_PATCH_SIZE)
+#if (SLAB_ITEM_SIZE % ARCH_MAX_CODE_ALIGNMENT != 0)
 // if not aligned then substitute_hook_functions breaks!
-#error SLAB_SIZE Must be aligned to ARCH_MAX_CODE_ALIGNMENT
+#error SLAB_ITEM_SIZE Must be aligned to ARCH_MAX_CODE_ALIGNMENT
 #endif
+
+/** Allow other files to use this constant. */
+const int g_exe_slab_item_size = SLAB_ITEM_SIZE;
 
 /**
  * @file execmem.c
@@ -34,7 +37,7 @@
  * @param[in]  hint       Unused
  * @param      ptr_p      The writable pointer
  * @param      vma_p      The executable pointer address
- * @param      size_p     The size of the allocation. Always `SLAB_SIZE`.
+ * @param      size_p     The size of the allocation. Always `SLAB_ITEM_SIZE`.
  * @param      opt        A `tai_substitute_args_t` structure
  * @param[in]  hint  Unused
  *
@@ -49,12 +52,11 @@ int execmem_alloc_unsealed(UNUSED uintptr_t hint, void **ptr_p, uintptr_t *vma_p
  * @brief      Flushes icache
  *
  * @param      ptr   Unused
- * @param[in]  vma   Pointer to flush
  * @param      opt   A `tai_substitute_args_t` structure
  *
  * @return     `SUBSTITUTE_OK`
  */
-int execmem_seal(UNUSED void *ptr, uintptr_t vma, void *opt) {
+int execmem_seal(UNUSED void *ptr, void *opt) {
     return SUBSTITUTE_OK;
 }
 
@@ -62,10 +64,9 @@ int execmem_seal(UNUSED void *ptr, uintptr_t vma, void *opt) {
  * @brief      Frees executable memory from slab allocator
  *
  * @param      ptr   The writable pointer
- * @param[in]  vma   The executable address. Must match with ptr.
  * @param      opt   A `tai_substitute_args_t` structure
  */
-void execmem_free(void *ptr, uintptr_t vma, void *opt) {
+void execmem_free(void *ptr, void *opt) {
 }
 
 /**
