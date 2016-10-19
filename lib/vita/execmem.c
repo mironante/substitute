@@ -19,6 +19,17 @@
 const int g_exe_slab_item_size = PATCH_ITEM_SIZE > sizeof(tai_hook_t) ? PATCH_ITEM_SIZE : sizeof(tai_hook_t);
 
 /**
+ * The reason we use the same slab allocator for patches (sized 216 max) and
+ * tai_hook_t (size 16) is because in both cases, we need to allocate memory in
+ * the user's memory space. One option is to use two different slabs and that
+ * would make more sense. However my prediction is that there is not a large
+ * number of hooks per process, so the minimum size for the slab (0x1000 bytes)
+ * is already too much. Better to waste 200 bytes per allocation than 2000 bytes
+ * per process. If usage dictates a need for change, it is easy enough to put
+ * them in different slabs.
+ */
+
+/**
  * @file execmem.c
  *
  * @brief      Functions for allocating executable memory and writing to RO
@@ -46,7 +57,15 @@ const int g_exe_slab_item_size = PATCH_ITEM_SIZE > sizeof(tai_hook_t) ? PATCH_IT
  */
 int execmem_alloc_unsealed(UNUSED uintptr_t hint, void **ptr_p, uintptr_t *vma_p, 
                            size_t *size_p, void *opt) {
-    return SUBSTITUTE_OK;
+    struct slab_chain *slab = (struct slab_chain *)opt;
+
+    *ptr_p = slab_alloc(slab, vma_p);
+    *size_p = PATCH_ITEM_SIZE;
+    if (*ptr_p == NULL) {
+        return SUBSTITUTE_ERR_VM;
+    } else {
+        return SUBSTITUTE_OK;
+    }
 }
 
 /**
@@ -57,7 +76,19 @@ int execmem_alloc_unsealed(UNUSED uintptr_t hint, void **ptr_p, uintptr_t *vma_p
  *
  * @return     `SUBSTITUTE_OK`
  */
-int execmem_seal(UNUSED void *ptr, void *opt) {
+int execmem_seal(void *ptr, void *opt) {
+    uintptr_t vma, ptr_align;
+    size_t len_align;
+    struct slab_chain *slab = (struct slab_chain *)opt;
+
+    vma = slab_getmirror(slab, ptr);
+    vma = vma & ~0x1F;
+    ptr_align = (uintptr_t)ptr & ~0x1F;
+    len_align = (((uintptr_t)ptr + PATCH_ITEM_SIZE + 0x1F) & ~0x1F) - ptr_align;
+
+    sceKernelCpuDcacheAndL2Flush((void *)ptr_align, len_align);
+    sceKernelCpuIcacheAndL2Flush((void *)vma, len_align);
+
     return SUBSTITUTE_OK;
 }
 
@@ -68,6 +99,8 @@ int execmem_seal(UNUSED void *ptr, void *opt) {
  * @param      opt   A `tai_substitute_args_t` structure
  */
 void execmem_free(void *ptr, void *opt) {
+    struct slab_chain *slab = (struct slab_chain *)opt;
+    slab_free(slab, ptr);
 }
 
 /**

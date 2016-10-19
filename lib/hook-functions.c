@@ -184,8 +184,7 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
 #endif
         hi->code = code;
         hi->arch_dis_ctx = arch;
-        uintptr_t pc_patch_start = hook->func_addr ? 
-                                            hook->func_addr : (uintptr_t) code;
+        uintptr_t pc_patch_start = (uintptr_t) code;
         int patch_size;
         bool need_intro_trampoline;
         if ((ret = check_intro_trampoline(&trampoline_ptr, &trampoline_addr, 
