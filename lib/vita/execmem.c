@@ -2,7 +2,9 @@
 #include "dis.h"
 #include "execmem.h"
 #include stringify(TARGET_DIR/jump-patch.h)
+#include <psp2kern/kernel/cpu.h>
 #include <psp2kern/kernel/sysmem.h>
+#include <psp2kern/kernel/threadmgr.h>
 #include "../../../slab.h"
 #include "../../../taihen_internal.h"
 
@@ -117,5 +119,18 @@ int execmem_foreign_write_with_pc_patch(struct execmem_foreign_write *writes,
                                         size_t nwrites,
                                         UNUSED execmem_pc_patch_callback callback,
                                         UNUSED void *callback_ctx) {
-    return 0;
+    for (int i = 0; i < nwrites; i++) {
+        struct slab_chain *slab = (struct slab_chain *)writes[i].opt;
+        SceUID pid = slab->pid;
+        if (pid == SHARED_PID) {
+            pid = sceKernelGetProcessId();
+        }
+        if (pid == KERNEL_PID) {
+            sceKernelCpuUnrestrictedMemcpy(writes[i].dst, writes[i].src, writes[i].len);
+        } else {
+            sceKernelRxMemcpyKernelToUserForPid(pid, (uintptr_t)writes[i].dst, writes[i].src, writes[i].len);
+        }
+        sceKernelCpuIcacheAndL2Flush(writes[i].dst, writes[i].len);
+    }
+    return SUBSTITUTE_OK;
 }
