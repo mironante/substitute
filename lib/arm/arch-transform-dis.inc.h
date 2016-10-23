@@ -36,7 +36,7 @@ void transform_dis_data(struct transform_dis_ctx *ctx, unsigned o0, unsigned o1,
     /* We only care if at least one op is PC, so quickly approximate that. */
     if (((o0 | o1 | o2 | o3) & 15) != 15)
         return;
-    unsigned *newval = ctx->base.newval;
+    uint32_t *newval = ctx->base.newval;
     newval[0] = o0;
     newval[1] = o1;
     newval[2] = o2;

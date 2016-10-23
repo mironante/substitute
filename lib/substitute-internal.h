@@ -104,7 +104,7 @@ int substitute_dlopen_in_pid(int pid, const char *filename, int options,
 int substitute_ios_unrestrict(task_t task, char **error);
 #endif
 
-static const char *xbasename(const char *path) {
+static UNUSED const char *xbasename(const char *path) {
     const char *slash = strrchr(path, '/');
     return slash ? slash + 1 : path;
 }
