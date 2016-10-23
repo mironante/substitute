@@ -5,6 +5,7 @@
 #include <psp2kern/kernel/cpu.h>
 #include <psp2kern/kernel/sysmem.h>
 #include <psp2kern/kernel/threadmgr.h>
+#include "../../../patches.h"
 #include "../../../slab.h"
 #include "../../../taihen_internal.h"
 
@@ -79,17 +80,12 @@ int execmem_alloc_unsealed(UNUSED uintptr_t hint, void **ptr_p, uintptr_t *vma_p
  * @return     `SUBSTITUTE_OK`
  */
 int execmem_seal(void *ptr, void *opt) {
-    uintptr_t vma, ptr_align;
-    size_t len_align;
+    uintptr_t vma;
     struct slab_chain *slab = (struct slab_chain *)opt;
 
     vma = slab_getmirror(slab, ptr);
-    vma = vma & ~0x1F;
-    ptr_align = (uintptr_t)ptr & ~0x1F;
-    len_align = (((uintptr_t)ptr + PATCH_ITEM_SIZE + 0x1F) & ~0x1F) - ptr_align;
 
-    sceKernelCpuDcacheAndL2Flush((void *)ptr_align, len_align);
-    sceKernelCpuIcacheAndL2Flush((void *)vma, len_align);
+    mirror_cache_flush(slab->pid, vma, PATCH_ITEM_SIZE);
 
     return SUBSTITUTE_OK;
 }
