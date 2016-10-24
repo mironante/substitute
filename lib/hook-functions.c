@@ -292,10 +292,12 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         fws[i].src = hi->jump_patch;
         fws[i].len = hi->jump_patch_size;
         fws[i].opt = hooks[i].opt;
-        records->function = hi->code;
-        records->buffer_size = hi->jump_patch_size;
-        memcpy(records->saved_buffer, hi->code, hi->jump_patch_size);
-        records = (struct substitute_function_hook_record *)((char *)&records->saved_buffer + records->buffer_size);
+        if (records) {
+            records->function = hi->code;
+            records->buffer_size = hi->jump_patch_size;
+            memcpy(records->saved_buffer, hi->code, hi->jump_patch_size);
+            records = (struct substitute_function_hook_record *)((char *)&records->saved_buffer + records->buffer_size);
+        }
     }
 
     struct pc_callback_info info = {his, nhooks, false};
