@@ -62,8 +62,10 @@ int execmem_alloc_unsealed(UNUSED uintptr_t hint, void **ptr_p, uintptr_t *vma_p
                            size_t *size_p, void *opt) {
     struct slab_chain *slab = (struct slab_chain *)opt;
 
+    LOG("Allocating exec ptr for pid %d", slab->pid);
     *ptr_p = slab_alloc(slab, vma_p);
     *size_p = PATCH_ITEM_SIZE;
+    LOG("Got %p, sized %x", *ptr_p, *size_p);
     if (*ptr_p == NULL) {
         return SUBSTITUTE_ERR_VM;
     } else {
@@ -83,9 +85,11 @@ int execmem_seal(void *ptr, void *opt) {
     uintptr_t vma;
     struct slab_chain *slab = (struct slab_chain *)opt;
 
+    LOG("Sealing exec ptr %p", ptr);
     vma = slab_getmirror(slab, ptr);
+    LOG("mirror addr %p", vma);
 
-    mirror_cache_flush(slab->pid, vma, PATCH_ITEM_SIZE);
+    cache_flush(slab->pid, vma, PATCH_ITEM_SIZE);
 
     return SUBSTITUTE_OK;
 }
@@ -98,6 +102,7 @@ int execmem_seal(void *ptr, void *opt) {
  */
 void execmem_free(void *ptr, void *opt) {
     struct slab_chain *slab = (struct slab_chain *)opt;
+    LOG("Freeing exec ptr %p", ptr);
     slab_free(slab, ptr);
 }
 
@@ -115,18 +120,21 @@ int execmem_foreign_write_with_pc_patch(struct execmem_foreign_write *writes,
                                         size_t nwrites,
                                         UNUSED execmem_pc_patch_callback callback,
                                         UNUSED void *callback_ctx) {
+    LOG("Patching exec memory: %d", nwrites);
     for (int i = 0; i < nwrites; i++) {
         struct slab_chain *slab = (struct slab_chain *)writes[i].opt;
         SceUID pid = slab->pid;
         if (pid == SHARED_PID) {
             pid = sceKernelGetProcessId();
+            LOG("sceKernelGetProcessId: %x", pid);
         }
+        LOG("PID:%d, dst:%p, src:%p, len:%x", pid, writes[i].dst, writes[i].src, writes[i].len);
         if (pid == KERNEL_PID) {
             sceKernelCpuUnrestrictedMemcpy(writes[i].dst, writes[i].src, writes[i].len);
         } else {
             sceKernelRxMemcpyKernelToUserForPid(pid, (uintptr_t)writes[i].dst, writes[i].src, writes[i].len);
         }
-        sceKernelCpuIcacheAndL2Flush(writes[i].dst, writes[i].len);
+        cache_flush(pid, (uintptr_t)writes[i].dst, writes[i].len);
     }
     return SUBSTITUTE_OK;
 }
