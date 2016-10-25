@@ -237,7 +237,8 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
             hi->outro_trampoline++;
 #endif
         if (hook->old_ptr)
-            *(void **) hook->old_ptr = hi->outro_trampoline;
+            *(uintptr_t *) hook->old_ptr = trampoline_addr + 
+                      (uintptr_t)(hi->outro_trampoline - outro_trampoline_real);
 
         /* Generate the rewritten start of the function for the outro
          * trampoline (complaining if any bad instructions are found)
