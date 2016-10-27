@@ -295,6 +295,7 @@ int substitute_hook_functions(const struct substitute_function_hook *hooks,
         fws[i].opt = hooks[i].opt;
         if (records) {
             records->function = hi->code;
+            records->opt = hooks[i].opt;
             records->buffer_size = hi->jump_patch_size;
             memcpy(records->saved_buffer, hi->code, hi->jump_patch_size);
             records = (struct substitute_function_hook_record *)((char *)&records->saved_buffer + records->buffer_size);
@@ -337,7 +338,7 @@ int substitute_free_hooks(struct substitute_function_hook_record *records,
         fws[i].dst = cur->function;
         fws[i].src = cur->saved_buffer;
         fws[i].len = cur->buffer_size;
-        fws[i].opt = NULL;
+        fws[i].opt = cur->opt;
         cur = (struct substitute_function_hook_record *)((char *)&cur->saved_buffer + cur->buffer_size);
     }
     /* TODO: Fix the case when thread is inside a patch/trampoline. */

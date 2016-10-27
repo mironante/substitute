@@ -98,13 +98,16 @@ struct substitute_function_hook {
     /* Currently unused; pass 0.  (Protip: When using C {} struct initializer
      * syntax, you can just omit this.) */
     int options;
-    /* Any platform specific auxiliary data */
+    /* Any platform specific auxiliary data. The data pointed to must remain 
+     * valid until after the hook is freed! */
     void *opt;
 };
 
 struct substitute_function_hook_record {
     /* Function that was originally hooked. */
     void *function;
+    /* Any platform specific auxiliary data copied from the hook */
+    void *opt;
     /** Should at least be MAX_JUMP_PATCH_SIZE for your platform */
     size_t buffer_size;
     /** Store the original code. Must be large enough to hold MAX_JUMP_PATCH_SIZE
