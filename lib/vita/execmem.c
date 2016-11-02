@@ -89,6 +89,7 @@ int execmem_seal(void *ptr, void *opt) {
     vma = slab_getmirror(slab, ptr);
     LOG("mirror addr %p", vma);
 
+    cache_flush(KERNEL_PID, (uintptr_t)ptr, PATCH_ITEM_SIZE);
     cache_flush(slab->pid, vma, PATCH_ITEM_SIZE);
 
     return SUBSTITUTE_OK;
@@ -128,7 +129,7 @@ int execmem_foreign_write_with_pc_patch(struct execmem_foreign_write *writes,
             pid = sceKernelGetProcessId();
             LOG("sceKernelGetProcessId: %x", pid);
         }
-        LOG("PID:%d, dst:%p, src:%p, len:%x", pid, writes[i].dst, writes[i].src, writes[i].len);
+        LOG("PID:%x, dst:%p, src:%p, len:%x", pid, writes[i].dst, writes[i].src, writes[i].len);
         if (pid == KERNEL_PID) {
             sceKernelCpuUnrestrictedMemcpy(writes[i].dst, writes[i].src, writes[i].len);
         } else {
