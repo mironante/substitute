@@ -108,4 +108,6 @@ static inline void LDR_PC(struct assemble_ctx ctx, uint32_t dpc) {
     else
         op32(ctx.codep, 0x051ff004 | ctx.cond << 28);
     op32(ctx.codep, (uint32_t) dpc);
+    if (ctx.pc & 2) // for alignment
+        op16(ctx.codep, 0xbf00);
 }
