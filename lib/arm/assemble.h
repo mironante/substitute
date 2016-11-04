@@ -111,3 +111,10 @@ static inline void LDR_PC(struct assemble_ctx ctx, uint32_t dpc) {
     if (ctx.pc & 2) // for alignment
         op16(ctx.codep, 0xbf00);
 }
+
+static inline void ADD_PC(struct assemble_ctx ctx, uint32_t Rd, uint32_t imm12) {
+    if (ctx.thumb)
+        op32(ctx.codep, 0x0000f20f | ((imm12 >> 11) << 10) | (((imm12 & 0x700) >> 8) << 28) | Rd << 24 | (imm12 & 0xff) << 16);
+    else
+        op32(ctx.codep, 0x028f0000 | Rd << 12 | imm12 << 0 | ctx.cond << 28);
+}
