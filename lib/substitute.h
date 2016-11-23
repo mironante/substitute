@@ -116,12 +116,12 @@ struct substitute_function_hook_record {
 };
 
 /* substitute_hook_functions options */
-#ifndef NO_PTHREADS
 enum {
-    SUBSTITUTE_NO_THREAD_SAFETY = 1,
-    SUBSTITUTE_RELAXED = 2,
-};
+#ifndef NO_PTHREADS
+    SUBSTITUTE_NO_THREAD_SAFETY = 1, 
 #endif
+    SUBSTITUTE_RELAXED = 2, 
+};
 
 /* Patch the machine code of the specified functions to redirect them to the
  * specified replacements.
