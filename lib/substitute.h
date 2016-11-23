@@ -119,6 +119,7 @@ struct substitute_function_hook_record {
 #ifndef NO_PTHREADS
 enum {
     SUBSTITUTE_NO_THREAD_SAFETY = 1,
+    SUBSTITUTE_RELAXED = 2,
 };
 #endif
 
@@ -141,6 +142,9 @@ enum {
  *
  * You can disable the main thread check and all synchronization by passing
  * SUBSTITUTE_NO_THREAD_SAFETY.
+ * 
+ * You can relax the disassembly engine (at the risk of possible incorrect 
+ * results) to be compatible with more functions by passing SUBSTITUTE_RELAXED.
  *
  * Why not just use a mutex to prevent deadlock?  That would work between
  * multiple calls into libsubstitute, but there may be other libraries that
