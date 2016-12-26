@@ -126,14 +126,14 @@ int execmem_foreign_write_with_pc_patch(struct execmem_foreign_write *writes,
         struct slab_chain *slab = (struct slab_chain *)writes[i].opt;
         SceUID pid = slab->pid;
         if (pid == SHARED_PID) {
-            pid = sceKernelGetProcessId();
-            LOG("sceKernelGetProcessId: %x", pid);
+            pid = ksceKernelGetProcessId();
+            LOG("ksceKernelGetProcessId: %x", pid);
         }
         LOG("PID:%x, dst:%p, src:%p, len:%x", pid, writes[i].dst, writes[i].src, writes[i].len);
         if (pid == KERNEL_PID) {
-            sceKernelCpuUnrestrictedMemcpy(writes[i].dst, writes[i].src, writes[i].len);
+            ksceKernelCpuUnrestrictedMemcpy(writes[i].dst, writes[i].src, writes[i].len);
         } else {
-            sceKernelRxMemcpyKernelToUserForPid(pid, (uintptr_t)writes[i].dst, writes[i].src, writes[i].len);
+            ksceKernelRxMemcpyKernelToUserForPid(pid, (uintptr_t)writes[i].dst, writes[i].src, writes[i].len);
         }
         cache_flush(pid, (uintptr_t)writes[i].dst, writes[i].len);
     }
