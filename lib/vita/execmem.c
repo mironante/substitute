@@ -131,7 +131,7 @@ int execmem_foreign_write_with_pc_patch(struct execmem_foreign_write *writes,
         }
         LOG("PID:%x, dst:%p, src:%p, len:%x", pid, writes[i].dst, writes[i].src, writes[i].len);
         if (pid == KERNEL_PID) {
-            ksceKernelCpuUnrestrictedMemcpy(writes[i].dst, writes[i].src, writes[i].len);
+            ksceKernelDomainTextMemcpy(writes[i].dst, writes[i].src, writes[i].len);
         } else {
             ksceKernelRxMemcpyKernelToUserForPid(pid, (uintptr_t)writes[i].dst, writes[i].src, writes[i].len);
         }
